@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --font-fraunces: "Fraunces", serif;
+  --font-inter: "Inter", sans-serif;
+  --font-jbmono: "JetBrains Mono", monospace;
+}
+
+html,
+body {
+  background-color: #14171c;
+  color: #f4efe4;
+}
+
+body {
+  font-family: var(--font-inter);
+}
+
+/* Subtle grain texture over the dark background, quiet, not decorative-for-its-own-sake */
+.bg-grain-overlay {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.035) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+::selection {
+  background-color: #d8a34e;
+  color: #14171c;
+}
+
+/* Visible keyboard focus ring, kept consistent across the app */
+:focus-visible {
+  outline: 2px solid #d8a34e;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
