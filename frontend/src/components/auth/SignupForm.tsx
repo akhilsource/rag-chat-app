@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 export function SignupForm() {
-  const { signup } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -36,12 +36,31 @@ export function SignupForm() {
     try {
       await signup(name, email, password);
       router.push("/chat");
-    } catch (err: any) {
-      if (err?.code === "auth/email-already-in-use") {
+    } catch (err: unknown) {
+      const code =
+        typeof err === "object" && err !== null && "code" in err
+          ? (err as { code?: string }).code
+          : undefined;
+      if (code === "auth/email-already-in-use") {
         setFormError("An account with that email already exists. Try signing in instead.");
+      } else if (err instanceof Error && err.message) {
+        setFormError(err.message);
       } else {
         setFormError("Couldn't create your account. Please try again.");
       }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignup() {
+    setFormError(null);
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+      router.push("/chat");
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
       setLoading(false);
     }
@@ -90,13 +109,29 @@ export function SignupForm() {
       />
 
       {formError && (
-        <p className="rounded-md bg-red-50 px-3 py-2 font-sans text-xs text-red-600">
+        <p className="rounded-xl bg-[var(--danger-bg)] px-3 py-2 text-xs text-danger">
           {formError}
         </p>
       )}
 
-      <Button type="submit" loading={loading} className="mt-2">
+      <Button type="submit" loading={loading} className="mt-1 w-full">
         Create account
+      </Button>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-white/10" />
+        <span className="label-caps !text-mist/35">or</span>
+        <div className="h-px flex-1 bg-white/10" />
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={handleGoogleSignup}
+        loading={loading}
+        className="w-full"
+      >
+        Continue with Google
       </Button>
     </form>
   );

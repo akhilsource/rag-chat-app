@@ -1,11 +1,12 @@
-"""
-Embedding model wrapper.
+"""Embedding model wrapper."""
 
-TODO: implement, e.g.
+from langchain_openai import OpenAIEmbeddings
 
-    from langchain_openai import OpenAIEmbeddings
-    from app.core.config import settings
+from app.core.config import settings
 
-    def get_embedding_model():
-        return OpenAIEmbeddings(model=settings.embedding_model)
-"""
+
+def get_embedding_model() -> OpenAIEmbeddings:
+    return OpenAIEmbeddings(
+        model=settings.embedding_model,
+        api_key=settings.openai_api_key,
+    )

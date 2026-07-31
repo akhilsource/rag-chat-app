@@ -1,28 +1,52 @@
-"""
-Centralized app settings, loaded from environment variables (.env).
+"""Centralized app settings, loaded from environment variables (.env)."""
 
-TODO: implement using pydantic-settings, e.g.
+from functools import lru_cache
 
-    from pydantic_settings import BaseSettings
+from pydantic import Field, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-    class Settings(BaseSettings):
-        app_name: str = "RAG Chat API"
-        environment: str = "development"
-        backend_cors_origins: list[str] = ["http://localhost:3000"]
 
-        jwt_secret: str
-        jwt_algorithm: str = "HS256"
-        jwt_expire_minutes: int = 60
+def _parse_cors_origins(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str):
+        return [part.strip() for part in value.split(",") if part.strip()]
+    return ["http://localhost:3000", "http://127.0.0.1:3000"]
 
-        openai_api_key: str
-        embedding_model: str = "text-embedding-3-small"
-        chat_model: str = "gpt-4o-mini"
 
-        vectorstore_dir: str = "./data/vectorstore"
-        database_url: str | None = None
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-        class Config:
-            env_file = ".env"
+    app_name: str = "RAG Chat API"
+    environment: str = "development"
+    backend_cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
-    settings = Settings()
-"""
+    jwt_secret: str = "change-me-to-a-long-random-string"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
+
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
+    chat_model: str = "gpt-4o-mini"
+    tavily_api_key: str = ""
+
+    vectorstore_dir: str = "./data/vectorstore"
+    uploads_dir: str = "./data/uploads"
+    database_url: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cors_origins(self) -> list[str]:
+        return _parse_cors_origins(self.backend_cors_origins)
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

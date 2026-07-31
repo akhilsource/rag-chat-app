@@ -5,43 +5,43 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#14171C",       // near-black background
-        paper: "#F4EFE4",     // parchment card surface
-        "paper-dim": "#E7E0D0",
-        teal: {
-          DEFAULT: "#3F7568",
-          dark: "#2C5850",
+        void: "#050507",
+        mist: "#f4f4f7",
+        accent: {
+          DEFAULT: "#7dd3c0",
+          dim: "#4aa896",
         },
-        amber: {
-          DEFAULT: "#D8A34E",
-          dark: "#B98333",
-        },
-        ash: "#8890A0",
+        danger: "#f07178",
       },
       fontFamily: {
-        display: ["var(--font-fraunces)", "serif"],
-        sans: ["var(--font-inter)", "sans-serif"],
-        mono: ["var(--font-jbmono)", "monospace"],
+        display: ["var(--font-display)", "sans-serif"],
+        sans: ["var(--font-body)", "sans-serif"],
       },
-      backgroundImage: {
-        "grain": "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0)",
+      borderRadius: {
+        panel: "1.25rem",
       },
       keyframes: {
-        shimmer: {
-          "0%, 100%": { opacity: "0.35" },
-          "50%": { opacity: "1" },
-        },
         rise: {
-          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "0%": { opacity: "0", transform: "translateY(12px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
+        pulseSoft: {
+          "0%, 100%": { opacity: "0.45" },
+          "50%": { opacity: "1" },
         },
       },
       animation: {
-        shimmer: "shimmer 2.4s ease-in-out infinite",
-        rise: "rise 0.5s ease-out both",
+        rise: "rise 0.55s ease-out both",
+        float: "float 5s ease-in-out infinite",
+        "pulse-soft": "pulseSoft 2.4s ease-in-out infinite",
       },
     },
   },
   plugins: [],
 };
+
 export default config;

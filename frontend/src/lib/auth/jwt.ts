@@ -25,7 +25,7 @@ export interface SessionPayload {
 
 /** Sign a new session JWT for the given user. */
 export async function signSessionToken(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+  return new SignJWT({ ...payload, sub: payload.uid })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(JWT_EXPIRES_IN)

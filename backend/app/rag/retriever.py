@@ -1,9 +1,20 @@
-"""
-Retrieval logic sitting on top of the vector store: top-k selection,
-optional metadata filters, optional reranking.
+"""Retrieval logic on top of the vector store."""
 
-TODO: implement, e.g.
+from langchain_core.documents import Document
 
-    def get_relevant_chunks(query: str, k: int = 4, filters: dict | None = None):
-        return similarity_search(query, k=k)
-"""
+from app.rag.vector_store import similarity_search
+
+
+def get_relevant_chunks(
+    query: str,
+    doc_ids: list[str],
+    k: int = 4,
+) -> list[Document]:
+    """Return top-k relevant chunks scoped to the given document ids."""
+    if not doc_ids:
+        return []
+
+    allowed = set(doc_ids)
+    chunks = similarity_search(query, k=k * 5)
+    filtered = [c for c in chunks if c.metadata.get("doc_id") in allowed]
+    return filtered[:k]

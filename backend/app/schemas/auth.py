@@ -1,15 +1,20 @@
-"""
-Pydantic request/response schemas for auth routes.
+"""Pydantic request/response schemas for auth routes."""
 
-TODO: implement, e.g.
+from pydantic import BaseModel, Field
 
-    from pydantic import BaseModel, EmailStr
 
-    class VerifyTokenRequest(BaseModel):
-        token: str
+class VerifyTokenRequest(BaseModel):
+    token: str
 
-    class UserProfile(BaseModel):
-        uid: str
-        email: EmailStr
-        display_name: str | None = None
-"""
+
+class UserProfile(BaseModel):
+    uid: str
+    email: str | None = None
+    display_name: str | None = None
+
+
+class TokenResponse(BaseModel):
+    """Returned by /auth/verify with the decoded claims."""
+
+    valid: bool = True
+    claims: dict = Field(default_factory=dict)

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { verifyFirebaseIdToken } from "@/lib/firebase/admin";
 import { signSessionToken } from "@/lib/auth/jwt";
 

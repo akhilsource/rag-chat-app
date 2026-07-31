@@ -13,6 +13,8 @@ import {
   signOut as firebaseSignOut,
   updateProfile,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
   type User,
 } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
@@ -23,6 +25,9 @@ interface AuthContextValue {
   loading: boolean;
   signup: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
+  /** @deprecated Use signOut instead */
   logout: () => Promise<void>;
 }
 
@@ -46,12 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!firebaseAuth) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email ?? "",
           name: firebaseUser.displayName,
+        });
+        void syncSessionCookie(firebaseUser).catch(() => {
+          // Keep the client session alive even if the server cookie sync fails.
         });
       } else {
         setUser(null);
@@ -62,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signup(name: string, email: string, password: string) {
+    if (!firebaseAuth) {
+      throw new Error("Firebase is not configured yet. Add your Firebase config to the frontend .env file.");
+    }
+
     const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
     if (name) {
       await updateProfile(credential.user, { displayName: name });
@@ -71,6 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function login(email: string, password: string) {
+    if (!firebaseAuth) {
+      throw new Error("Firebase is not configured yet. Add your Firebase config to the frontend .env file.");
+    }
+
     const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
     await syncSessionCookie(credential.user);
     setUser({
@@ -80,14 +102,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    await firebaseSignOut(firebaseAuth);
-    setUser(null);
+  async function loginWithGoogle() {
+    if (!firebaseAuth) {
+      throw new Error("Firebase is not configured yet. Add your Firebase config to the frontend .env file.");
+    }
+
+    const provider = new GoogleAuthProvider();
+    const credential = await signInWithPopup(firebaseAuth, provider);
+    await syncSessionCookie(credential.user);
+    setUser({
+      uid: credential.user.uid,
+      email: credential.user.email ?? "",
+      name: credential.user.displayName,
+    });
+  }
+
+  async function signOut() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      if (firebaseAuth) {
+        await firebaseSignOut(firebaseAuth);
+      }
+      setUser(null);
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, signup, login, loginWithGoogle, signOut, logout: signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

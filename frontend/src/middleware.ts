@@ -1,15 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/auth/jwt";
 
 const PROTECTED_PATHS = ["/chat"];
 const AUTH_PATHS = ["/login", "/signup"];
 
+function isPathMatch(pathname: string, path: string) {
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("session")?.value;
 
-  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
-  const isAuthPage = AUTH_PATHS.some((p) => pathname.startsWith(p));
+  const isProtected = PROTECTED_PATHS.some((path) => isPathMatch(pathname, path));
+  const isAuthPage = AUTH_PATHS.some((path) => isPathMatch(pathname, path));
 
   let isAuthenticated = false;
   if (token) {

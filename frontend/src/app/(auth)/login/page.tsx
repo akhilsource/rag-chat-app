@@ -7,11 +7,11 @@ export default function LoginPage() {
     <AuthCard
       eyebrow="RAG Chat"
       title="Welcome back"
-      subtitle="Sign in to keep asking your documents questions."
+      subtitle="Sign in to continue with your topics and documents."
       footer={
         <>
           New here?{" "}
-          <Link href="/signup" className="text-amber hover:underline">
+          <Link href="/signup" className="font-semibold text-accent hover:underline">
             Create an account
           </Link>
         </>

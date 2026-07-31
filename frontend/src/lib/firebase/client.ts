@@ -14,8 +14,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const firebaseApp: FirebaseApp = getApps().length
-  ? getApp()
-  : initializeApp(firebaseConfig);
+const isFirebaseConfigured = Object.values(firebaseConfig).every(
+  (value) => typeof value === "string" && value.trim().length > 0,
+);
 
-export const firebaseAuth: Auth = getAuth(firebaseApp);
+export const firebaseApp: FirebaseApp | null = isFirebaseConfigured
+  ? getApps().length
+    ? getApp()
+    : initializeApp(firebaseConfig)
+  : null;
+
+export const firebaseAuth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null;

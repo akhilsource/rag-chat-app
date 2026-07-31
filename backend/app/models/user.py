@@ -1,15 +1,17 @@
-"""
-SQLAlchemy User model (optional — only needed if this API keeps its own
-user records rather than relying solely on Firebase + JWT claims).
+"""SQLAlchemy User model."""
 
-TODO: implement, e.g.
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-    from sqlalchemy import Column, String
-    from app.db.base import Base
+from app.db.base import Base
 
-    class User(Base):
-        __tablename__ = "users"
-        id = Column(String, primary_key=True)       # Firebase UID
-        email = Column(String, unique=True, index=True)
-        display_name = Column(String, nullable=True)
-"""
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    email: Mapped[str] = mapped_column(String, index=True)
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    documents: Mapped[list["Document"]] = relationship(back_populates="user")
+    sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")

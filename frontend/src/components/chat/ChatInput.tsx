@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 
 interface ChatInputProps {
@@ -26,9 +27,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Ask something about your documents…"
         disabled={disabled}
-        className="flex-1 rounded-md border border-paper/15 bg-paper/[0.06] px-4 py-2.5 font-sans text-sm text-paper placeholder:text-paper/35 outline-none focus:border-amber"
+        className="flex-1 rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-mist outline-none placeholder:text-mist/30 focus:border-accent/70 disabled:opacity-50"
       />
-      <Button type="submit" disabled={disabled} className="w-auto px-6">
+      <Button type="submit" disabled={disabled} className="px-6">
         Ask
       </Button>
     </form>

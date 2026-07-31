@@ -1,9 +1,7 @@
-"""
-SQLAlchemy declarative base.
+"""SQLAlchemy declarative base."""
 
-TODO: implement, e.g.
+from sqlalchemy.orm import DeclarativeBase
 
-    from sqlalchemy.orm import declarative_base
 
-    Base = declarative_base()
-"""
+class Base(DeclarativeBase):
+    pass

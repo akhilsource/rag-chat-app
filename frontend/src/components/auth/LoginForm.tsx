@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -22,10 +22,26 @@ export function LoginForm() {
     setLoading(true);
     try {
       await login(email, password);
-      const next = searchParams.get("next") ?? "/chat";
-      router.push(next);
+      router.push(searchParams.get("next") ?? "/chat");
     } catch (err) {
-      setError("Couldn't sign in. Check your email and password and try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Couldn't sign in. Check your email and password and try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setError(null);
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+      router.push(searchParams.get("next") ?? "/chat");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
       setLoading(false);
     }
@@ -53,13 +69,23 @@ export function LoginForm() {
       />
 
       {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 font-sans text-xs text-red-600">
+        <p className="rounded-xl bg-[var(--danger-bg)] px-3 py-2 text-xs text-danger">
           {error}
         </p>
       )}
 
-      <Button type="submit" loading={loading} className="mt-2">
+      <Button type="submit" loading={loading} className="mt-1 w-full">
         Sign in
+      </Button>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-white/10" />
+        <span className="label-caps !text-mist/35">or</span>
+        <div className="h-px flex-1 bg-white/10" />
+      </div>
+
+      <Button type="button" variant="ghost" onClick={handleGoogleLogin} loading={loading} className="w-full">
+        Continue with Google
       </Button>
     </form>
   );

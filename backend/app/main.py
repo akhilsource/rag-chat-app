@@ -1,34 +1,47 @@
-"""
-FastAPI application entrypoint.
+"""FastAPI application entrypoint."""
 
-Wires together:
-- CORS (so the Next.js frontend on a different origin can call this API)
-- Route modules (auth, chat, documents)
-- Startup/shutdown hooks (e.g. load vector store, warm up embeddings)
+import logging
+from contextlib import asynccontextmanager
 
-TODO: implement.
-"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# from app.core.config import settings
-# from app.api.routes import auth, chat, documents
+from app.api.routes import auth, chat, documents
+from app.core.config import settings
+from app.db.session import init_db
+from app.services.rag_service import ensure_data_dirs
 
-app = FastAPI(title="RAG Chat API")
+logger = logging.getLogger(__name__)
 
-# TODO: restrict allow_origins to settings.BACKEND_CORS_ORIGINS
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    ensure_data_dirs()
+    if settings.database_url:
+        try:
+            init_db()
+            logger.info("Database tables initialized")
+        except Exception as exc:
+            logger.error("Failed to initialize database: %s", exc)
+            raise
+    else:
+        logger.warning("DATABASE_URL not set — session persistence disabled")
+    yield
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# TODO: mount routers, e.g.
-# app.include_router(auth.router, prefix="/auth", tags=["auth"])
-# app.include_router(chat.router, prefix="/chat", tags=["chat"])
-# app.include_router(documents.router, prefix="/documents", tags=["documents"])
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(documents.router, prefix="/documents", tags=["documents"])
 
 
 @app.get("/health")
