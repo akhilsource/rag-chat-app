@@ -35,7 +35,7 @@ async def upload_document(
     file: UploadFile = File(...),
     auth: tuple = Depends(get_current_user_db),
 ) -> DocumentMeta:
-    """Accept a file upload, chunk it, and store embeddings in FAISS."""
+    """Accept a file upload, chunk it, and store embeddings in pgvector."""
     db, _, user_id = auth
     rag_service.ensure_data_dirs()
 

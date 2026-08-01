@@ -25,7 +25,9 @@ async def lifespan(_app: FastAPI):
             logger.error("Failed to initialize database: %s", exc)
             raise
     else:
-        logger.warning("DATABASE_URL not set — session persistence disabled")
+        logger.warning(
+            "DATABASE_URL not set — session persistence and pgvector embeddings disabled"
+        )
     yield
 
 

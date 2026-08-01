@@ -50,16 +50,19 @@ Email/Password) for the client config, and a **service account key**
 ### Backend
 
 ```bash
+# From repo root — start Postgres with pgvector
+docker compose up -d db
+
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env               # same JWT_SECRET as the frontend
+cp .env.example .env               # same JWT_SECRET as the frontend; set DATABASE_URL
 uvicorn app.main:app --reload --port 8000
 ```
 
-The backend is currently a **structure-only skeleton** — every file under
-`app/` has a docstring describing what it should do and a sketch of the
-implementation. See `backend/README.md` for the full file-by-file guide.
+Embeddings are stored in Postgres via **pgvector** (not local FAISS files).
+Use a pgvector-enabled Postgres image (see root `docker-compose.yml`).
+After switching from FAISS, re-upload your documents.
 
 ## Design notes (frontend)
 

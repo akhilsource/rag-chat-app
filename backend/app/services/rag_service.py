@@ -224,4 +224,3 @@ def answer_question(
 
 def ensure_data_dirs() -> None:
     Path(settings.uploads_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.vectorstore_dir).mkdir(parents=True, exist_ok=True)

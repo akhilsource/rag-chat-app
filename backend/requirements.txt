@@ -18,11 +18,6 @@ langchain-openai
 openai
 tiktoken
 
-faiss-cpu
-# chromadb
-pinecone-client
-
-
 pypdf
 python-docx
 python-pptx
@@ -34,5 +29,6 @@ httpx
 
 sqlalchemy
 psycopg2-binary
+pgvector
 
 # --- Testing ---

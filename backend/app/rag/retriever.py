@@ -13,8 +13,4 @@ def get_relevant_chunks(
     """Return top-k relevant chunks scoped to the given document ids."""
     if not doc_ids:
         return []
-
-    allowed = set(doc_ids)
-    chunks = similarity_search(query, k=k * 5)
-    filtered = [c for c in chunks if c.metadata.get("doc_id") in allowed]
-    return filtered[:k]
+    return similarity_search(query, k=k, doc_ids=doc_ids)

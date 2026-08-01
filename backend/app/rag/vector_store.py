@@ -1,77 +1,105 @@
-"""FAISS vector store: add, search, delete embedded chunks."""
+"""pgvector vector store: add, search, delete embedded chunks."""
 
-from pathlib import Path
-
-from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
+from sqlalchemy import delete, select
 
-from app.core.config import settings
+from app.db.session import SessionLocal
+from app.models.chunk import DocumentChunk
 from app.rag.embeddings import get_embedding_model
 
-_INDEX_DIR = "faiss_index"
 
-
-def _index_path() -> Path:
-    return Path(settings.vectorstore_dir) / _INDEX_DIR
-
-
-def _index_exists() -> bool:
-    path = _index_path()
-    return path.exists() and any(path.iterdir())
-
-
-def load_or_create_vectorstore() -> FAISS | None:
-    """Load persisted FAISS index, or None if no index exists yet."""
-    if not _index_exists():
-        return None
-    return FAISS.load_local(
-        str(_index_path()),
-        get_embedding_model(),
-        allow_dangerous_deserialization=True,
-    )
-
-
-def save_vectorstore(store: FAISS) -> None:
-    path = _index_path()
-    path.mkdir(parents=True, exist_ok=True)
-    store.save_local(str(path))
+def _require_db() -> None:
+    if SessionLocal is None:
+        raise RuntimeError(
+            "DATABASE_URL is not configured. Set it to a Postgres URL with pgvector."
+        )
 
 
 def add_documents(chunks: list[Document], ids: list[str]) -> None:
-    """Embed chunks and persist them in the FAISS index."""
+    """Embed chunks and persist them in Postgres via pgvector."""
     if not chunks:
         return
+    if len(chunks) != len(ids):
+        raise ValueError("chunks and ids must have the same length")
 
-    store = load_or_create_vectorstore()
-    if store is None:
-        store = FAISS.from_documents(chunks, get_embedding_model(), ids=ids)
-    else:
-        store.add_documents(chunks, ids=ids)
-    save_vectorstore(store)
+    _require_db()
+    embeddings = get_embedding_model().embed_documents(
+        [chunk.page_content for chunk in chunks]
+    )
+
+    rows = [
+        DocumentChunk(
+            id=chunk_id,
+            doc_id=str(chunk.metadata.get("doc_id", "")),
+            filename=str(chunk.metadata.get("filename", "")),
+            chunk_index=int(chunk.metadata.get("chunk_index", 0)),
+            content=chunk.page_content,
+            embedding=embedding,
+        )
+        for chunk_id, chunk, embedding in zip(ids, chunks, embeddings)
+    ]
+
+    db = SessionLocal()
+    try:
+        db.add_all(rows)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
-def similarity_search(query: str, k: int = 4) -> list[Document]:
-    """Return the top-k most similar chunks for a query."""
-    store = load_or_create_vectorstore()
-    if store is None:
+def similarity_search(
+    query: str,
+    k: int = 4,
+    *,
+    doc_ids: list[str] | None = None,
+) -> list[Document]:
+    """Return the top-k most similar chunks, optionally scoped to doc_ids."""
+    _require_db()
+    if doc_ids is not None and not doc_ids:
         return []
-    return store.similarity_search(query, k=k)
+
+    query_embedding = get_embedding_model().embed_query(query)
+
+    db = SessionLocal()
+    try:
+        stmt = select(DocumentChunk)
+        if doc_ids is not None:
+            stmt = stmt.where(DocumentChunk.doc_id.in_(doc_ids))
+        stmt = stmt.order_by(
+            DocumentChunk.embedding.cosine_distance(query_embedding)
+        ).limit(k)
+
+        rows = db.execute(stmt).scalars().all()
+        return [
+            Document(
+                page_content=row.content,
+                metadata={
+                    "doc_id": row.doc_id,
+                    "filename": row.filename,
+                    "chunk_index": row.chunk_index,
+                },
+            )
+            for row in rows
+        ]
+    finally:
+        db.close()
 
 
 def delete_by_doc_id(doc_id: str) -> int:
     """Remove all chunks belonging to a document. Returns count removed."""
-    store = load_or_create_vectorstore()
-    if store is None:
-        return 0
-
-    ids_to_delete = [
-        doc_id_key
-        for doc_id_key, doc in store.docstore._dict.items()
-        if doc.metadata.get("doc_id") == doc_id
-    ]
-    if not ids_to_delete:
-        return 0
-
-    store.delete(ids_to_delete)
-    save_vectorstore(store)
-    return len(ids_to_delete)
+    _require_db()
+    db = SessionLocal()
+    try:
+        result = db.execute(
+            delete(DocumentChunk).where(DocumentChunk.doc_id == doc_id)
+        )
+        db.commit()
+        return int(result.rowcount or 0)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

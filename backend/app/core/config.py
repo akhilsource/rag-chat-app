@@ -34,7 +34,6 @@ class Settings(BaseSettings):
     chat_model: str = "gpt-4o-mini"
     tavily_api_key: str = ""
 
-    vectorstore_dir: str = "./data/vectorstore"
     uploads_dir: str = "./data/uploads"
     database_url: str | None = None
 
