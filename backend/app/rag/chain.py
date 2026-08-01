@@ -166,5 +166,6 @@ def run_rag_chain(
         answer,
         chunks,
         answer_found=not unanswered,
-        suggest_web_search=False,
+        # Offer web search when the docs weren't enough (unless already searched).
+        suggest_web_search=unanswered and not use_web_search,
     )

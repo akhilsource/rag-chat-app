@@ -40,7 +40,7 @@ def test_build_llm_messages_includes_history_before_context_question():
 
 @patch("app.rag.chain.ChatOpenAI")
 @patch("app.rag.chain.get_relevant_chunks")
-def test_run_rag_chain_does_not_suggest_web_search_when_chunks_exist(mock_get_chunks, mock_llm_cls):
+def test_run_rag_chain_suggests_web_search_when_llm_does_not_know(mock_get_chunks, mock_llm_cls):
     mock_get_chunks.return_value = [
         Document(page_content="5 years Python experience.", metadata={"doc_id": "d1"})
     ]
@@ -54,12 +54,31 @@ def test_run_rag_chain_does_not_suggest_web_search_when_chunks_exist(mock_get_ch
         history=[{"role": "user", "content": "Tell me about their skills."}],
     )
 
-    assert result["suggest_web_search"] is False
+    assert result["suggest_web_search"] is True
     assert result["answer_found"] is False
     mock_get_chunks.assert_called_once()
     retrieval_query = mock_get_chunks.call_args.args[0]
     assert "Tell me about their skills." in retrieval_query
     assert "How do you rate it?" in retrieval_query
+
+
+@patch("app.rag.chain.ChatOpenAI")
+@patch("app.rag.chain.get_relevant_chunks")
+def test_run_rag_chain_does_not_suggest_web_search_after_web_used(mock_get_chunks, mock_llm_cls):
+    mock_get_chunks.return_value = [
+        Document(page_content="5 years Python experience.", metadata={"doc_id": "d1"})
+    ]
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = MagicMock(content="I don't know.")
+    mock_llm_cls.return_value = mock_llm
+
+    with patch("app.rag.chain.search_web", return_value=[]), patch(
+        "app.rag.chain.tavily_configured", return_value=True
+    ):
+        result = run_rag_chain("How do you rate it?", doc_ids=["d1"], use_web_search=True)
+
+    assert result["suggest_web_search"] is False
+    assert result["answer_found"] is False
 
 
 @patch("app.rag.chain.get_relevant_chunks")
