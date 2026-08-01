@@ -8,9 +8,16 @@ import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import type { ChatMessageOut } from "@/lib/api";
 
+interface MessageSource {
+  title: string;
+  url?: string;
+  kind: "web" | "doc";
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  sources?: MessageSource[];
 }
 
 interface ChatWindowProps {
@@ -18,11 +25,38 @@ interface ChatWindowProps {
   initialMessages?: ChatMessageOut[];
 }
 
+function sourceLabel(metadata: Record<string, unknown>): MessageSource {
+  const sourceType = String(metadata.source_type ?? "document");
+  const title = String(metadata.filename ?? metadata.source_url ?? "Source");
+  const url =
+    typeof metadata.source_url === "string" && metadata.source_url.startsWith("http")
+      ? metadata.source_url
+      : undefined;
+  return {
+    title,
+    url,
+    kind: sourceType === "tavily_search" || sourceType === "url" ? "web" : "doc",
+  };
+}
+
 function toUiMessages(messages: ChatMessageOut[]): Message[] {
   return messages.map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
+    sources: (m.sources ?? []).map((s) => sourceLabel(s.metadata)),
   }));
+}
+
+function uniqueSources(sources: MessageSource[]): MessageSource[] {
+  const seen = new Set<string>();
+  const out: MessageSource[] = [];
+  for (const source of sources) {
+    const key = `${source.kind}:${source.url ?? source.title}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(source);
+  }
+  return out.slice(0, 6);
 }
 
 export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps) {
@@ -64,7 +98,14 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
       const response = await api.chat.query(question, sessionId, {
         useWebSearch: false,
       });
-      setMessages((prev) => [...prev, { role: "assistant", content: response.answer }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: response.answer,
+          sources: uniqueSources(response.sources.map((s) => sourceLabel(s.metadata))),
+        },
+      ]);
       if (response.suggest_web_search) {
         setPendingWebSearch(question);
       }
@@ -97,7 +138,28 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
         useWebSearch: true,
         persistUserMessage: false,
       });
-      setMessages((prev) => [...prev, { role: "assistant", content: response.answer }]);
+      // Replace the previous "I don't know" instead of stacking another one.
+      setMessages((prev) => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i -= 1) {
+          if (next[i].role === "assistant") {
+            next[i] = {
+              role: "assistant",
+              content: response.answer,
+              sources: uniqueSources(response.sources.map((s) => sourceLabel(s.metadata))),
+            };
+            return next;
+          }
+        }
+        return [
+          ...next,
+          {
+            role: "assistant",
+            content: response.answer,
+            sources: uniqueSources(response.sources.map((s) => sourceLabel(s.metadata))),
+          },
+        ];
+      });
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -126,7 +188,12 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
 
       <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/8 bg-black/25 p-4">
         {messages.map((m, i) => (
-          <MessageBubble key={`${m.role}-${i}`} role={m.role} content={m.content} />
+          <MessageBubble
+            key={`${m.role}-${i}`}
+            role={m.role}
+            content={m.content}
+            sources={m.sources}
+          />
         ))}
         {pendingWebSearch && (
           <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">

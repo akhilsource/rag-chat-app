@@ -23,31 +23,45 @@ export function TopicDocuments({
 }: TopicDocumentsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
-  const [selectedDocIds, setSelectedDocIds] = useState<string[]>(linkedDocumentIds);
   const [uploading, setUploading] = useState(false);
   const [addingUrl, setAddingUrl] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    setSelectedDocIds(linkedDocumentIds);
-  }, [linkedDocumentIds]);
+    let cancelled = false;
+    setError(null);
 
-  useEffect(() => {
+    if (linkedDocumentIds.length === 0) {
+      setDocuments([]);
+      return;
+    }
+
     api.documents
       .list()
-      .then((res) => setDocuments(res.documents))
+      .then((res) => {
+        if (cancelled) return;
+        const linked = new Set(linkedDocumentIds);
+        // Only sources linked to this topic — never other topics' docs.
+        setDocuments(res.documents.filter((doc) => linked.has(doc.id)));
+      })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load documents");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load documents");
+        }
       });
-  }, []);
 
-  function toggleDoc(id: string) {
-    setSelectedDocIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, linkedDocumentIds]);
+
+  async function linkDocsToTopic(documentIds: string[]) {
+    const updated = await api.chat.updateSessionDocuments(sessionId, documentIds);
+    onDocumentsUpdated(updated.document_ids);
+    return updated;
   }
 
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -72,9 +86,12 @@ export function TopicDocuments({
 
     try {
       const doc = await api.documents.upload(file);
-      setDocuments((prev) => [doc, ...prev]);
-      setSelectedDocIds((prev) => [...prev, doc.id]);
-      setSuccess(`Uploaded "${doc.filename}". Save to link it to this topic.`);
+      const nextIds = linkedDocumentIds.includes(doc.id)
+        ? linkedDocumentIds
+        : [...linkedDocumentIds, doc.id];
+      await linkDocsToTopic(nextIds);
+      setDocuments((prev) => [doc, ...prev.filter((d) => d.id !== doc.id)]);
+      setSuccess(`Uploaded and linked "${doc.filename}" to this topic.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -96,13 +113,6 @@ export function TopicDocuments({
     }
   }
 
-  async function linkDocsToTopic(documentIds: string[]) {
-    const updated = await api.chat.updateSessionDocuments(sessionId, documentIds);
-    setSelectedDocIds(updated.document_ids);
-    onDocumentsUpdated(updated.document_ids);
-    return updated;
-  }
-
   async function handleAddUrl() {
     const normalized = normalizeUrl(url);
     if (!normalized) {
@@ -115,11 +125,11 @@ export function TopicDocuments({
     setSuccess(null);
     try {
       const doc = await api.documents.ingestUrl(normalized);
-      setDocuments((prev) => [doc, ...prev]);
-      const nextIds = selectedDocIds.includes(doc.id)
-        ? selectedDocIds
-        : [...selectedDocIds, doc.id];
+      const nextIds = linkedDocumentIds.includes(doc.id)
+        ? linkedDocumentIds
+        : [...linkedDocumentIds, doc.id];
       await linkDocsToTopic(nextIds);
+      setDocuments((prev) => [doc, ...prev.filter((d) => d.id !== doc.id)]);
       setUrl("");
       setSuccess(`Added and linked ${doc.filename}`);
     } catch (err) {
@@ -129,23 +139,21 @@ export function TopicDocuments({
     }
   }
 
-  async function handleSaveSources() {
-    setSaving(true);
+  async function handleRemove(docId: string) {
+    setRemovingId(docId);
     setError(null);
     setSuccess(null);
     try {
-      const updated = await linkDocsToTopic(selectedDocIds);
-      setSuccess(`Linked ${updated.document_ids.length} source(s) to this topic.`);
+      const nextIds = linkedDocumentIds.filter((id) => id !== docId);
+      await linkDocsToTopic(nextIds);
+      setDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+      setSuccess("Removed from this topic.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save sources.");
+      setError(err instanceof Error ? err.message : "Failed to remove source.");
     } finally {
-      setSaving(false);
+      setRemovingId(null);
     }
   }
-
-  const hasChanges =
-    selectedDocIds.length !== linkedDocumentIds.length ||
-    selectedDocIds.some((id) => !linkedDocumentIds.includes(id));
 
   return (
     <GlassCard sheen className="flex h-full flex-col p-5">
@@ -153,7 +161,7 @@ export function TopicDocuments({
         <div>
           <p className="label-caps">Sources</p>
           <p className="mt-1 text-sm text-muted">
-            Files or web links (Tavily).
+            Only for this topic. Upload a file or add a link.
           </p>
         </div>
         <Button
@@ -215,37 +223,29 @@ export function TopicDocuments({
 
       {documents.length === 0 ? (
         <p className="border-t border-white/10 pt-4 text-sm text-faint">
-          No sources yet. Upload a file or paste a link above.
+          No sources in this topic yet. Upload a file or paste a link above.
         </p>
       ) : (
-        <>
-          <ul className="space-y-2 border-t border-white/10 pt-4">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5 text-sm transition hover:bg-white/[0.06]">
-                  <input
-                    type="checkbox"
-                    checked={selectedDocIds.includes(doc.id)}
-                    onChange={() => toggleDoc(doc.id)}
-                    className="accent-[var(--accent)]"
-                  />
-                  <span className="flex-1 truncate text-mist">{doc.filename}</span>
-                  <span className="label-caps !text-mist/30">{doc.num_chunks} chunks</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4">
-            <Button
-              type="button"
-              loading={saving}
-              disabled={!hasChanges}
-              onClick={handleSaveSources}
+        <ul className="space-y-2 border-t border-white/10 pt-4">
+          {documents.map((doc) => (
+            <li
+              key={doc.id}
+              className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5 text-sm"
             >
-              Save sources
-            </Button>
-          </div>
-        </>
+              <span className="flex-1 truncate text-mist">{doc.filename}</span>
+              <span className="label-caps !text-mist/30">{doc.num_chunks} chunks</span>
+              <Button
+                type="button"
+                variant="ghost"
+                loading={removingId === doc.id}
+                onClick={() => void handleRemove(doc.id)}
+                className="!px-2 !py-1 text-xs"
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
     </GlassCard>
   );

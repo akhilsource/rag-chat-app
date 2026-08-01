@@ -23,15 +23,29 @@ def search_web(query: str, max_results: int = 5) -> list[Document]:
         "api_key": settings.tavily_api_key,
         "query": query,
         "max_results": max_results,
-        "include_answer": False,
-        "search_depth": "basic",
+        "include_answer": True,
+        "search_depth": "advanced",
     }
-    with httpx.Client(timeout=30.0) as client:
+    with httpx.Client(timeout=45.0) as client:
         response = client.post(TAVILY_SEARCH_URL, json=payload)
         response.raise_for_status()
         data = response.json()
 
     documents: list[Document] = []
+    tavily_answer = (data.get("answer") or "").strip()
+    if tavily_answer:
+        documents.append(
+            Document(
+                page_content=tavily_answer,
+                metadata={
+                    "filename": "Tavily summary",
+                    "source_url": "tavily:answer",
+                    "source_type": "tavily_search",
+                    "doc_id": "web",
+                },
+            )
+        )
+
     for item in data.get("results", []):
         content = (item.get("content") or "").strip()
         url = item.get("url") or "web"
