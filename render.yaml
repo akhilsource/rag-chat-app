@@ -1,0 +1,28 @@
+# Deploy the FastAPI backend on Render.
+# Dashboard: New → Blueprint → connect this repo, or create a Web Service manually.
+services:
+  - type: web
+    name: rag-chat-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: BACKEND_CORS_ORIGINS
+        value: https://rag-chat-app-phi.vercel.app
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: CHAT_MODEL
+        value: gpt-4o-mini
+      - key: UPLOADS_DIR
+        value: ./data/uploads
