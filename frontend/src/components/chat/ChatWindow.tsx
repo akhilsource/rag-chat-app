@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -64,6 +64,7 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
   const [loading, setLoading] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState<string | null>(null);
   const [searchingWeb, setSearchingWeb] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setPendingWebSearch(null);
@@ -87,6 +88,12 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
       ]);
     }
   }, [sessionId, initialMessages]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, loading, pendingWebSearch]);
 
   async function handleSend(question: string) {
     if (!sessionId || loading || pendingWebSearch) return;
@@ -178,15 +185,18 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
   }
 
   return (
-    <GlassCard sheen className="flex min-h-[520px] flex-col gap-4 p-5">
-      <div>
+    <GlassCard sheen className="flex h-[min(70vh,720px)] flex-col gap-4 overflow-hidden p-5">
+      <div className="shrink-0">
         <p className="label-caps">Chat</p>
         <p className="mt-1 text-sm text-muted">
           Answers are grounded in this topic&apos;s sources.
         </p>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/8 bg-black/25 p-4">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/8 bg-black/25 p-4"
+      >
         {messages.map((m, i) => (
           <MessageBubble
             key={`${m.role}-${i}`}
@@ -217,10 +227,12 @@ export function ChatWindow({ sessionId, initialMessages = [] }: ChatWindowProps)
         )}
       </div>
 
-      <ChatInput
-        onSend={handleSend}
-        disabled={loading || !sessionId || Boolean(pendingWebSearch)}
-      />
+      <div className="shrink-0">
+        <ChatInput
+          onSend={handleSend}
+          disabled={loading || !sessionId || Boolean(pendingWebSearch)}
+        />
+      </div>
     </GlassCard>
   );
 }

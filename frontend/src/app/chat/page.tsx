@@ -73,12 +73,14 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-              <TopicDocuments
-                sessionId={activeSessionId}
-                linkedDocumentIds={activeSession.document_ids}
-                onDocumentsUpdated={handleDocumentsUpdated}
-              />
+            <div className="grid gap-4 lg:grid-cols-[340px_1fr] lg:items-start">
+              <div className="lg:sticky lg:top-6 lg:max-h-[min(70vh,720px)] lg:overflow-y-auto">
+                <TopicDocuments
+                  sessionId={activeSessionId}
+                  linkedDocumentIds={activeSession.document_ids}
+                  onDocumentsUpdated={handleDocumentsUpdated}
+                />
+              </div>
               <ChatWindow sessionId={activeSessionId} initialMessages={sessionMessages} />
             </div>
           </div>
